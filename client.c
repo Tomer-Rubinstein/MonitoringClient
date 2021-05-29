@@ -28,9 +28,11 @@ int main() {
   int sockfd, n;
   int sendbytes;
   struct sockaddr_in servaddr;
-  char sendline_fmt[MAXLINE] = "POST /user=%s HTTP/1.1\r\n\r\n"
-  char sendline[MAXLINE];
+  char cmd[MAXLINE] = { };
+
+  char sendline[MAXLINE] = { };
   char recvline[MAXLINE];
+  char *token;
 
   getUserName();
   getCPUName();
@@ -57,8 +59,14 @@ int main() {
     return 1;
   }
 
-  sprintf(sendline, sendline_fmt, userName);
+  token = strtok(cpuName, ":");
+  token = strtok(NULL, ":");
+  printf("token: %s\n", token);
+  cpuName = token;
 
+  snprintf(cmd, 1000, "GET /api?cpuType=%s&ram=%s&username=%s&cpuUsage=%d&processes=%s HTTP/1.1\r\n\r\n", "cpuName", "ramData", "userName", 51, "processes");
+  printf("%s\n", cmd);
+  sprintf(sendline, cmd); /*sprintf(sendline, "GET /api?cpuType=test HTTP/1.1\r\n\r\n");*/
   printf("%s\n", sendline);
   sendbytes = strlen(sendline);
 
