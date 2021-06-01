@@ -66,7 +66,7 @@ void getRamData(){
   
   ramData[0] = '\0';
 
-  fp = popen("free -h --si", "r");
+  fp = popen("free -h --si | grep Mem", "r");
   if (fp == NULL) {
     exit(FREE_COMMAND_NOT_FOUND);
   }

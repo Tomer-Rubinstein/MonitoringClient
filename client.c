@@ -21,6 +21,8 @@
 #define SA struct sockaddr
 
 float myAbs(float);
+char *encodeStrToUrl(char *);
+char *removeSpaces(char *);
 
 int main() {
   float prevCpuUsage = getCPUUsage();
@@ -28,9 +30,8 @@ int main() {
   int sockfd, n;
   int sendbytes;
   struct sockaddr_in servaddr;
-  char cmd[MAXLINE] = { };
-
-  char sendline[MAXLINE] = { };
+  char *request_fmt = "POST /api HTTP/1.0\r\nContent-Type: text/plain\r\nContent-Legth: 200\r\ncpuType=%s&ram=%s&username=%s&cpuUsage=%d&processes=%s\r\n\r\n";
+  char sendline[MAXLINE] = {};
   char recvline[MAXLINE];
   char *token;
 
@@ -61,12 +62,23 @@ int main() {
 
   token = strtok(cpuName, ":");
   token = strtok(NULL, ":");
-  printf("token: %s\n", token);
   cpuName = token;
+  cpuName = encodeStrToUrl(cpuName);
 
-  snprintf(cmd, 1000, "GET /api?cpuType=%s&ram=%s&username=%s&cpuUsage=%d&processes=%s HTTP/1.1\r\n\r\n", "cpuName", "ramData", "userName", 51, "processes");
-  printf("%s\n", cmd);
-  sprintf(sendline, cmd); /*sprintf(sendline, "GET /api?cpuType=test HTTP/1.1\r\n\r\n");*/
+  token = NULL;
+  token = strtok(ramData, "Mem:");
+  ramData[0] = '\0';
+  strcat(ramData, removeSpaces(token));
+  token = NULL;
+  token = strtok(ramData, "G");
+  strcat(ramData, "G");
+
+  /*snprintf(cmd, 1000, "GET /api?cpuType=%s&ram=%s&username=%s&cpuUsage=%d&processes=%s HTTP/1.1\r\n\r\n", cpuName, ramData, userName, 51, "processes");*/
+
+  sprintf(sendline, request_fmt, cpuName, ramData, userName, 51, "processes");
+  printf("%s\n", sendline);
+  sendline[0] = '\0';
+
   printf("%s\n", sendline);
   sendbytes = strlen(sendline);
 
@@ -77,18 +89,19 @@ int main() {
 
   memset(recvline, 0, MAXLINE);
 
+/*
   while((n = read(sockfd, recvline, MAXLINE-1)) > 0){
     printf("%s", recvline);
   }
   if(n < 0){
     printf("Read error\n");
     return 1;
-  }
+  }*/
 
   /*while(1){
     getRamData();
     printf("%s\n", ramData);
-    printf("[+] CPU: %.1f% -\n", myAbs(getCPUUsage()-prevCpuUsage)); /* calculate the cpu percentage every 3 seconds
+    printf("[+] CPU: %.1f% -\n", myAbs(getCPUUsage()-prevCpuUsage));
     prevCpuUsage = getCPUUsage();
 
     sleep(3);
@@ -99,4 +112,36 @@ int main() {
 
 float myAbs(float n){
   return (n < 0) ? -n : n;
+}
+
+char *encodeStrToUrl(char *str){
+  char *newStr = (char *)malloc(strlen(str) * sizeof(char));
+  char *validSpace = "_";
+  int i;
+
+  newStr[0] = '\0';
+  for(i=0; i < strlen(str); i++){
+    if(i != 0){
+      if(str[i] == ' ')
+        strcat(newStr, validSpace);
+      else
+        strncat(newStr, &str[i], 1);
+    }
+  }
+  printf("newStr: %s\n", newStr);
+  return newStr;
+}
+
+char *removeSpaces(char *str){
+  char *newStr = (char *)malloc(strlen(str) * sizeof(char));
+  int i;
+
+  newStr[0] = '\0';
+  for(i=0; i < strlen(str); i++){
+    if(i != 0){
+      if(str[i] != ' ')
+        strncat(newStr, &str[i], 1);
+    }
+  }
+  return newStr;
 }
