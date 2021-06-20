@@ -32,6 +32,10 @@ int main() {
   token = strtok(ramData, "G");
   strcat(ramData, "G");
 
+  printf("user: %s\n", userName);
+  strtok(userName, "\n");
+  printf("after user: %s\n", userName);
+
   postRequest(cpuName, userName, ramData, processes, currCpu);
 
   /* sending live data every 5 seconds */
@@ -61,6 +65,8 @@ int main() {
     prevCpuUsage = getCPUUsage();
   }
 
+
+  printf("Bye bye!\n\n");
   return 0;
 }
 
