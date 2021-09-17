@@ -66,6 +66,8 @@ int postRequest(char *cpuName, char *userName, char *ramData, char *processes, f
     return 1;
   }
 
+  printf("works\n");
+
   /* reading the response */
   memset(recvline, 0, MAXLINE);
   while((n = read(sockfd, recvline, MAXLINE-1)) > 0){
@@ -75,6 +77,8 @@ int postRequest(char *cpuName, char *userName, char *ramData, char *processes, f
     printf("Read error\n");
     return 1;
   }
+
+
 
   return 0;
 }

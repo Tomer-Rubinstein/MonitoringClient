@@ -5,22 +5,48 @@
 */
 
 #define _GNU_SOURCE
+
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-#include "client.h"
 #include <unistd.h>
+#include <stdbool.h>
 
-char *cpuName = NULL;
-char userName[50];
-char ramData[1000];
-char *processes = NULL;
+#include "client.h"
+#include "getters.h"
+#include "stringOperations.h"
+
+UserData *getUserData(){
+  UserData *data = calloc(1, sizeof(UserData));
+
+  char *cpuType = getCPUName();
+  char *username = getUserName();
+  char *ram = getRamData();
+  char *procs = getProcesses();
+
+  data->ram = (char *) calloc(strlen(ram), sizeof(char));
+  strcat(data->ram, ram);
+
+  data->username = (char *) calloc(strlen(username), sizeof(char));
+  strcat(data->username, username);
+
+
+  data->cpuType = (char *) calloc(strlen(cpuType), sizeof(char));
+  strcat(data->cpuType, cpuType);
+
+  data->processes = (char *) calloc(strlen(procs), sizeof(char));
+  strcat(data->processes, procs);
+
+  return data;
+}
 
 /*
 * Gets the cpu type of the pc
 */
-void getCPUName(){
+char *getCPUName(){
   FILE *cpuInfoFile = fopen("/proc/cpuinfo", "r");
+  char *cpuName = NULL;
+
   size_t len = 0;
   ssize_t read;
 
@@ -34,14 +60,17 @@ void getCPUName(){
   }
 
   fclose(cpuInfoFile);
+  return cpuName;
 }
 
 /*
 * gets the current user of the pc
 */
-void getUserName(){
+char *getUserName(){
   FILE *fp;
   char out[10];
+  char *userName = (char *) calloc(1, sizeof(char));
+
 
   fp = popen("whoami", "r");
   if (fp == NULL) {
@@ -55,38 +84,61 @@ void getUserName(){
   }
 
   pclose(fp);
+  return userName;
 }
 
 /*
 * gets the ram data, including memory.
 */
-void getRamData(){
+char *getRamData(){
   FILE *fp;
-  char out[1000];
-  
-  ramData[0] = '\0';
+  bool flag = false;
+
+  char *ramData = (char *) calloc(1000, sizeof(char));
+  memset(ramData, '\0', 1000);
+
+  char *totalRam = (char *) calloc(10, sizeof(char));
+  char *ramUsage = (char *) calloc(10, sizeof(char));
+
+  char *memoryUsage = (char *) calloc(20, sizeof(char));
 
   fp = popen("free -h --si | grep Mem", "r");
   if (fp == NULL) {
     exit(FREE_COMMAND_NOT_FOUND);
   }
 
-  while (fgets(out, sizeof(out), fp) != NULL) {
-    if(!strncat(ramData, out, 1000)){
-      exit(RAM_DATA_TOO_LONG);
+  while (fgets(ramData, 1000, fp) != NULL);
+  memset(ramData, ' ', 16);
+  ramData = removeSpaces(ramData);
+
+  for(int i=0; i < strlen(ramData); i++){
+    if(ramData[i] == 'G'){
+      flag = true;
+      continue;
+    }
+
+    if(flag){
+      strncat(ramUsage, &ramData[i], 1);
+      if(i+1 < strlen(ramData) && ramData[i+1] == 'G')
+        break;
+    }else{
+      strncat(totalRam, &ramData[i], 1);
     }
   }
 
+
+  sprintf(memoryUsage, "%s/%s (GB)", ramUsage, totalRam);
   pclose(fp);
+  return memoryUsage;
 }
 
 /*
 * get the current running processes
 */
-void getProcesses(){
+char *getProcesses(){
   FILE *fp;
   char out[1000];
-  processes = calloc(sizeof(char), 1000);
+  char *processes = (char *) calloc(1000, sizeof(char));
 
   fp = popen("ps -A", "r");
   if (fp == NULL) {
@@ -105,6 +157,7 @@ void getProcesses(){
   }
 
   pclose(fp);
+  return processes;
 }
 
 /*
@@ -124,6 +177,7 @@ float getCPUUsage(){
 
   while (fgets(out, sizeof(out), fp) != NULL);
   token = strtok(out, " ");
+
   while(token != NULL){
     avg += atof(token);
     token = strtok(NULL, " ");
