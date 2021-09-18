@@ -22,20 +22,25 @@ int sockfd, n;
 int sendbytes;
 struct sockaddr_in servaddr;
 
-char *request_fmt = "POST /api HTTP/1.1\r\nContent-Type: application/x-www-form-urlencoded\r\nContent-Length: %d\n\r\ncpuType=%s&ram=%s&username=%s&cpuUsage=%.1f&processes=%s";
+char *request_fmt = "POST /api HTTP/1.1\r\nContent-Type: application/x-www-form-urlencoded\r\nContent-Length: %d\r\n\r\ncpuType=%s&ram=%s&username=%s&cpuUsage=%.1f&processes=%s";
 
 char sendline[MAXLINE];
 char recvline[MAXLINE];
 
 int postRequest(char *cpuName, char *userName, char *ramData, char *processes, float cpuUsage){
   sendline[0] = '\0';
-  int contentLength = 44;
+  int contentLength = 0;
+
+  char *cpuUsageDigits = calloc(5, sizeof(char));
+  sprintf(cpuUsageDigits, "%.1f", cpuUsage);
 
   contentLength += strlen(cpuName);
   contentLength += strlen(userName);
   contentLength += strlen(ramData);
-  contentLength += 5;
-  contentLength += 10;
+  contentLength += strlen(processes);
+  contentLength += strlen(cpuUsageDigits);
+
+  printf("sending data: %s %s %s %s %f\n", cpuName, userName, ramData, processes, cpuUsage);
 
   /* initializing the socket */
   if((sockfd=socket(AF_INET, SOCK_STREAM, 0)) < 0){
@@ -57,22 +62,24 @@ int postRequest(char *cpuName, char *userName, char *ramData, char *processes, f
     return 1;
   }
 
-  /* sending the first POST request to the webserver */
+  /* sending the POST request to the webserver */
   snprintf(sendline, 1000, request_fmt, contentLength, cpuName, ramData, userName, cpuUsage, processes);
   printf("%s\n", sendline);
   sendbytes = strlen(sendline);
+  
   if(write(sockfd, sendline, sendbytes) != sendbytes){
     printf("Write error!\n");
     return 1;
   }
 
-  printf("works\n");
+  printf("data has been sent, waiting for read..\n");
 
   /* reading the response */
   memset(recvline, 0, MAXLINE);
   while((n = read(sockfd, recvline, MAXLINE-1)) > 0){
     printf("%s", recvline);
   }
+
   if(n < 0){
     printf("Read error\n");
     return 1;

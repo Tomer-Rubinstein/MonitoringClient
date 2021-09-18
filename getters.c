@@ -1,9 +1,3 @@
-/*
-* All functions written in this file aren't getters
-* since they do not return anything,
-* they set the values of their variables instead.
-*/
-
 #define _GNU_SOURCE
 
 #include <stdio.h>
@@ -16,8 +10,14 @@
 #include "getters.h"
 #include "stringOperations.h"
 
+/*
+  [TODO] implement err_n_die function
+  [TODO] parse and send processes to the webserver
+*/
+
+/* returns an object containing all needed data */
 UserData *getUserData(){
-  UserData *data = calloc(1, sizeof(UserData));
+  UserData *data = malloc(sizeof(UserData));
 
   char *cpuType = getCPUName();
   char *username = getUserName();
@@ -34,38 +34,56 @@ UserData *getUserData(){
   data->cpuType = (char *) calloc(strlen(cpuType), sizeof(char));
   strcat(data->cpuType, cpuType);
 
+
   data->processes = (char *) calloc(strlen(procs), sizeof(char));
   strcat(data->processes, procs);
 
   return data;
 }
 
-/*
-* Gets the cpu type of the pc
-*/
+/* returns the CPU's model name */
 char *getCPUName(){
   FILE *cpuInfoFile = fopen("/proc/cpuinfo", "r");
-  char *cpuName = NULL;
+  char *cpuName = (char *) calloc(100, sizeof(char));
+  char *result;
 
-  size_t len = 0;
-  ssize_t read;
+  bool isCPUName = false;
 
   if(cpuInfoFile == NULL)
     exit(CPU_FILE_NOT_FOUND);
-
-  while((read = getline(&cpuName, &len, cpuInfoFile)) != EOF){
+  
+  while (fgets(cpuName, 100, cpuInfoFile) != NULL) {
     if(strstr(cpuName, "model name")){
       break;
     }
   }
 
+  cpuName[strlen(cpuName)-1] = '\0';
+
+  result = (char *) calloc(strlen(cpuName), sizeof(char));
+  memset(result, '\0', strlen(cpuName));
+
+  /* parsing the cpu name out of the string */
+  for(int i=0; i < strlen(cpuName); i++){
+    if(cpuName[i] == ':'){
+      isCPUName = true;
+      i++;
+      continue;
+    }
+
+    if(isCPUName)
+      strncat(result, &cpuName[i], 1);
+  }
+
   fclose(cpuInfoFile);
-  return cpuName;
+  result[strlen(result)-1] = 0;
+
+
+
+  return result;
 }
 
-/*
-* gets the current user of the pc
-*/
+/* returns the machine's name */
 char *getUserName(){
   FILE *fp;
   char out[10];
@@ -77,37 +95,36 @@ char *getUserName(){
     exit(WHOAMI_CMD_FAILED);
   }
 
-  while (fgets(out, sizeof(out), fp) != NULL) {
+  while (fgets(out, 10, fp) != NULL) {
     if(!strncat(userName, out, 50)){
       exit(USERNAME_TOO_LONG);
     }
   }
 
   pclose(fp);
+  userName[strlen(userName)-1] = '\0'; /* remove the newline character */
   return userName;
 }
 
-/*
-* gets the ram data, including memory.
-*/
+/* returns a formmated string representing the memory usage and the total ram size in gigabytes */
 char *getRamData(){
   FILE *fp;
   bool flag = false;
 
-  char *ramData = (char *) calloc(1000, sizeof(char));
-  memset(ramData, '\0', 1000);
+  char *ramData = (char *) calloc(100, sizeof(char)); /* the output of the command fp */
+  char *totalRam = (char *) calloc(10, sizeof(char)); /* the ram of the machine, parsed from ramData */
+  char *ramUsage = (char *) calloc(10, sizeof(char)); /* the memory usage of the machine, parsed from ramData */
+  char *memoryUsage = (char *) calloc(20, sizeof(char)); /* the final string, formatted nicely `USAGE/RAM (GB)` */
 
-  char *totalRam = (char *) calloc(10, sizeof(char));
-  char *ramUsage = (char *) calloc(10, sizeof(char));
-
-  char *memoryUsage = (char *) calloc(20, sizeof(char));
-
+  /* only taking the memory part of this command */
   fp = popen("free -h --si | grep Mem", "r");
   if (fp == NULL) {
     exit(FREE_COMMAND_NOT_FOUND);
   }
 
-  while (fgets(ramData, 1000, fp) != NULL);
+  while (fgets(ramData, 100, fp) != NULL);
+
+  /* string parsing, works for every case */
   memset(ramData, ' ', 16);
   ramData = removeSpaces(ramData);
 
@@ -126,26 +143,39 @@ char *getRamData(){
     }
   }
 
-
-  sprintf(memoryUsage, "%s/%s (GB)", ramUsage, totalRam);
+  /* final string formmating */
+  sprintf(memoryUsage, "%s/%s(GB)", ramUsage, totalRam);
   pclose(fp);
+
   return memoryUsage;
 }
 
-/*
-* get the current running processes
-*/
+/* returns the running processes on the machine */
 char *getProcesses(){
   FILE *fp;
-  char out[1000];
-  char *processes = (char *) calloc(1000, sizeof(char));
+  char out[20];
+  char *dup = (char *) calloc(20, sizeof(char)); /* to remove different services but run with the same command */
+  char *processes = (char *) calloc(100, sizeof(char));
 
-  fp = popen("ps -A", "r");
+  memset(dup, '\0', 20);
+
+  fp = popen("ps -A | awk \'{print $4}\'", "r");
   if (fp == NULL) {
     exit(PS_CMD_NOT_FOUND);
   }
 
-  while (fgets(out, sizeof(out), fp) != NULL) {
+  while (fgets(out, 20, fp) != NULL) {
+    /* replace the new line character with a space for easier url encoding */
+    out[strlen(out)-1] = ' ';
+
+    /* if the previous service and the current service names are the same, don't add to the processes list */
+    if(strcmp(dup, out) == 0)
+      continue;
+    
+    /* to avoid the column name of the command ps -A */
+    if(strlen(dup) == 0)
+      goto set;
+    
     if(!strncat(processes, out, strlen(out))){
       if(strlen(processes) - strlen(out) <= 200){
         processes = realloc(processes, strlen(processes)+500*sizeof(char));
@@ -154,15 +184,20 @@ char *getProcesses(){
         }
       }
     }
+
+    set:
+      memset(dup, '\0', 20);
+      strcat(dup, out);
   }
 
+  /* fence posting */
+  processes[strlen(processes)-1] = '\0';
   pclose(fp);
+
   return processes;
 }
 
-/*
-gets the cpu parameters for the calculation of the cpu usage percentage.
-*/
+/* returns the needed variables in order to calculate the cpu usage of the machine */
 float getCPUUsage(){
   FILE *fp;
   char out[50];

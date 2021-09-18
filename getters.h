@@ -3,7 +3,6 @@ typedef struct{
   char *cpuType;
   char *ram;
   char *processes;
-  float cpuUsage;
 } UserData;
 
 UserData *getUserData();
