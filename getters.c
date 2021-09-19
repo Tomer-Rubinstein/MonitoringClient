@@ -151,28 +151,34 @@ char *getRamData(){
 char *getProcesses(){
   FILE *fp;
   char out[20];
-  char *dup = (char *) calloc(20, sizeof(char)); /* to remove different services but run with the same command */
   char *processes = (char *) calloc(100, sizeof(char));
 
-  memset(dup, '\0', 20);
+  char *token;
+  char *procsCopy;
 
   fp = popen("ps -A | awk \'{print $4}\'", "r");
   if (fp == NULL) {
     exit(PS_CMD_NOT_FOUND);
   }
 
+  loop:
   while (fgets(out, 20, fp) != NULL) {
-    /* replace the new line character with a space for easier url encoding */
+
+    /* not inserting duplicate process names to the request */
+    procsCopy = (char *) calloc(strlen(processes), sizeof(char));
+    strcat(procsCopy, processes);
+
+    /* replacing the newline character in a blank space for easier url encoding and duplicate process names detection */
     out[strlen(out)-1] = ' ';
 
-    /* if the previous service and the current service names are the same, don't add to the processes list */
-    if(strcmp(dup, out) == 0)
-      continue;
-    
-    /* to avoid the column name of the command ps -A */
-    if(strlen(dup) == 0)
-      goto set;
-    
+    /* going through each process name (each process name is seperated by a space) */
+    token = strtok(procsCopy, " ");
+    while(token != NULL){
+      if(strcmp(removeSpaces(token), removeSpaces(out)) == 0)
+        goto loop;
+      token = strtok(NULL, " ");
+    }
+
     if(!strncat(processes, out, strlen(out))){
       if(strlen(processes) - strlen(out) <= 200){
         processes = realloc(processes, strlen(processes)+500*sizeof(char));
@@ -181,10 +187,6 @@ char *getProcesses(){
         }
       }
     }
-
-    set:
-      memset(dup, '\0', 20);
-      strcat(dup, out);
   }
 
   /* fence posting */
