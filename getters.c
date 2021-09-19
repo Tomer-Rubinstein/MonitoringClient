@@ -10,10 +10,7 @@
 #include "getters.h"
 #include "stringOperations.h"
 
-/*
-  [TODO] implement err_n_die function
-  [TODO] parse and send processes to the webserver
-*/
+
 
 /* returns an object containing all needed data */
 UserData *getUserData(){

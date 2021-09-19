@@ -7,6 +7,11 @@
 #include "postData.h"
 #include "stringOperations.h"
 
+/*
+  [TODO] implement err_n_die function
+  [TODO] refactor code
+*/
+
 int main() {
   float prevCpuUsage = getCPUUsage();
   float currCpu = 0;

@@ -22,10 +22,12 @@ int sockfd, n;
 int sendbytes;
 struct sockaddr_in servaddr;
 
-char *request_fmt = "POST /api HTTP/1.1\r\nContent-Type: application/x-www-form-urlencoded\r\nContent-Length: %d\r\n\r\ncpuType=%s&ram=%s&username=%s&cpuUsage=%.1f&processes=%s";
+char *request_fmt = "POST /api HTTP/1.1\r\nContent-Type: application/x-www-form-urlencoded\r\nContent-Length: %d\r\n\r\n%s";
+char *request_body_fmt = "cpuType=%s&ram=%s&username=%s&cpuUsage=%.1f&processes=%s";
 
 char sendline[MAXLINE];
 char recvline[MAXLINE];
+char requestBody[MAXLINE];
 
 int postRequest(char *cpuName, char *userName, char *ramData, char *processes, float cpuUsage){
   sendline[0] = '\0';
@@ -34,11 +36,8 @@ int postRequest(char *cpuName, char *userName, char *ramData, char *processes, f
   char *cpuUsageDigits = calloc(5, sizeof(char));
   sprintf(cpuUsageDigits, "%.1f", cpuUsage);
 
-  contentLength += strlen(cpuName);
-  contentLength += strlen(userName);
-  contentLength += strlen(ramData);
-  contentLength += strlen(processes);
-  contentLength += strlen(cpuUsageDigits);
+  snprintf(requestBody, 1000, request_body_fmt, cpuName, ramData, userName, cpuUsage, processes);
+  contentLength = strlen(requestBody);
 
   printf("sending data: %s %s %s %s %f\n", cpuName, userName, ramData, processes, cpuUsage);
 
@@ -63,7 +62,7 @@ int postRequest(char *cpuName, char *userName, char *ramData, char *processes, f
   }
 
   /* sending the POST request to the webserver */
-  snprintf(sendline, 1000, request_fmt, contentLength, cpuName, ramData, userName, cpuUsage, processes);
+  snprintf(sendline, 1000, request_fmt, contentLength, requestBody);
   printf("%s\n", sendline);
   sendbytes = strlen(sendline);
   
