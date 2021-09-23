@@ -84,7 +84,7 @@ char *getCPUName(){
 char *getUserName(){
   FILE *fp;
   char out[10];
-  char *userName = (char *) calloc(1, sizeof(char));
+  char *userName = (char *) calloc(100, sizeof(char));
 
 
   fp = popen("whoami", "r");
@@ -150,7 +150,7 @@ char *getRamData(){
 /* returns the running processes on the machine */
 char *getProcesses(){
   FILE *fp;
-  char out[20];
+  char *out = (char *) calloc(20, sizeof(char));
   char *processes = (char *) calloc(100, sizeof(char));
 
   char *token;
@@ -163,7 +163,6 @@ char *getProcesses(){
 
   loop:
   while (fgets(out, 20, fp) != NULL) {
-
     /* not inserting duplicate process names to the request */
     procsCopy = (char *) calloc(strlen(processes), sizeof(char));
     strcat(procsCopy, processes);
@@ -192,6 +191,11 @@ char *getProcesses(){
   /* fence posting */
   processes[strlen(processes)-1] = '\0';
   pclose(fp);
+
+  if(procsCopy)
+    free(procsCopy);
+  if(out)
+    free(out);
 
   return processes;
 }
